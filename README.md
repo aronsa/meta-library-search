@@ -15,9 +15,6 @@ https://gateway.bibliocommons.com/v2/libraries/bpl/rss/search?query=%28contribut
 
 Athenaeum: https://catalog.bostonathenaeum.org/vwebv/search?searchArg1=On+the+road&argType1=phrase&searchCode1=TKEY&combine2=and&searchArg2=Jack&argType2=phrase&searchCode2=NKEY&combine3=and&searchArg3=&argType3=any&searchCode3=GKEY&year=2025-2026&fromYear=&toYear=&location=all&place=all&type=all&status=all&medium=all&language=all&content=all&media=all&carrier=all&recCount=50&searchType=2&page.search.search.button=Search
 
-
-This executible will be built in common lisp, for funsies
-
 Each result attribute will contain:
 - Author(s)
 - Title
