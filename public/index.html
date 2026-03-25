@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Boston Library Search</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Boston Library Search</h1>
+    <p class="subtitle">Search across the Boston Public Library and the Boston Athenaeum</p>
+  </header>
+
+  <main>
+    <form id="search-form">
+      <div class="form-row">
+        <input id="title-input" type="text" placeholder="Title" autocomplete="off" spellcheck="false">
+        <input id="author-input" type="text" placeholder="Author" autocomplete="off" spellcheck="false">
+        <button type="submit" id="search-btn">Search</button>
+      </div>
+    </form>
+
+    <div id="status"></div>
+    <div id="error-banners"></div>
+    <div id="results"></div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
