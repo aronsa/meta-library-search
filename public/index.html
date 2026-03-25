@@ -3,13 +3,35 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Boston Library Search</title>
+  <title>Meta Library Search</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header>
-    <h1>Boston Library Search</h1>
-    <p class="subtitle">Search across the Boston Public Library and the Boston Athenaeum</p>
+    <div class="header-inner">
+      <svg class="logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 44" aria-hidden="true">
+        <!-- Pediment -->
+        <polygon points="2,15 26,3 50,15" fill="white" opacity="0.95"/>
+        <!-- Frieze -->
+        <rect x="4" y="15" width="44" height="5" fill="white"/>
+        <!-- 4 columns -->
+        <rect x="8"  y="20" width="6" height="18" fill="white" opacity="0.65"/>
+        <rect x="17" y="20" width="6" height="18" fill="white" opacity="0.65"/>
+        <rect x="29" y="20" width="6" height="18" fill="white" opacity="0.65"/>
+        <rect x="38" y="20" width="6" height="18" fill="white" opacity="0.65"/>
+        <!-- Base steps -->
+        <rect x="2"  y="38" width="48" height="4" fill="white" opacity="0.9"/>
+        <rect x="0"  y="42" width="52" height="2" fill="white" opacity="0.7"/>
+        <!-- Small books on pediment -->
+        <rect x="11" y="8"  width="6" height="4" rx="0.5" fill="white" opacity="0.5"/>
+        <rect x="19" y="7"  width="8" height="4" rx="0.5" fill="white" opacity="0.5"/>
+        <rect x="29" y="8"  width="6" height="4" rx="0.5" fill="white" opacity="0.5"/>
+      </svg>
+      <div class="header-text">
+        <h1>Meta Library Search</h1>
+        <p class="subtitle">Search across BPL and the Athenaeum in Boston</p>
+      </div>
+    </div>
   </header>
 
   <main>
@@ -19,12 +41,22 @@
         <input id="author-input" type="text" placeholder="Author" autocomplete="off" spellcheck="false">
         <button type="submit" id="search-btn">Search</button>
       </div>
+      <div class="filter-row">
+        <label class="filter-label">
+          <input type="checkbox" id="books-only-filter">
+          Books only
+        </label>
+      </div>
     </form>
 
     <div id="status"></div>
     <div id="error-banners"></div>
     <div id="results"></div>
   </main>
+
+  <footer>
+    <p>A project of <a href="https://sa.maronson.co" target="_blank" rel="noopener noreferrer">Sam Aronson</a></p>
+  </footer>
 
   <script src="app.js"></script>
 </body>

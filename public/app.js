@@ -5,10 +5,11 @@ const searchBtn = document.getElementById('search-btn');
 const statusEl = document.getElementById('status');
 const bannersEl = document.getElementById('error-banners');
 const resultsEl = document.getElementById('results');
+const booksOnlyFilter = document.getElementById('books-only-filter');
 
 function setLoading(loading) {
   searchBtn.disabled = loading;
-  statusEl.textContent = loading ? 'Searching BPL and Boston Athenaeum…' : '';
+  statusEl.textContent = loading ? 'Searching BPL and the Athenaeum…' : '';
 }
 
 function showBanners(errors) {
@@ -33,6 +34,30 @@ function formatBadgeClass(format) {
 
 function libraryBadgeClass(hostingLibrary) {
   return hostingLibrary === 'BPL' ? 'badge-library-bpl' : 'badge-library-ath';
+}
+
+function isBook(result) {
+  return result.format.toLowerCase() === 'book';
+}
+
+function renderAvailability(card, result) {
+  if (!result.recordId) return;
+
+  const library = result.hostingLibrary === 'BPL' ? 'bpl' : 'athenaeum';
+  const availEl = card.querySelector('.result-availability');
+  if (!availEl) return;
+
+  fetch(`/api/availability?library=${library}&id=${encodeURIComponent(result.recordId)}`)
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      if (!data || data.status === null || data.status === undefined) {
+        availEl.remove();
+        return;
+      }
+      availEl.textContent = data.status === 'available' ? 'Available' : 'Checked out';
+      availEl.className = `availability-badge ${data.status === 'available' ? 'avail-yes' : 'avail-no'}`;
+    })
+    .catch(() => availEl.remove());
 }
 
 function renderCard(result) {
@@ -76,7 +101,7 @@ function renderCard(result) {
 
   const libBadge = document.createElement('span');
   libBadge.className = `badge ${libraryBadgeClass(result.hostingLibrary)}`;
-  libBadge.textContent = result.hostingLibrary;
+  libBadge.textContent = result.hostingLibrary === 'BPL' ? 'BPL' : 'Athenaeum';
 
   const fmtBadge = document.createElement('span');
   fmtBadge.className = `badge ${formatBadgeClass(result.format)}`;
@@ -90,6 +115,14 @@ function renderCard(result) {
     year.className = 'result-year';
     year.textContent = result.publishDate;
     meta.appendChild(year);
+  }
+
+  // Availability placeholder (lazy-loaded)
+  if (result.recordId) {
+    const availEl = document.createElement('span');
+    availEl.className = 'availability-badge avail-loading';
+    availEl.textContent = 'checking…';
+    meta.appendChild(availEl);
   }
 
   body.appendChild(titleEl);
@@ -118,16 +151,25 @@ function noCover() {
 function renderResults(data) {
   resultsEl.innerHTML = '';
 
-  if (data.results.length === 0) {
-    statusEl.textContent = 'No results found.';
+  const booksOnly = booksOnlyFilter.checked;
+  const filtered = booksOnly ? data.results.filter(isBook) : data.results;
+
+  if (filtered.length === 0) {
+    statusEl.textContent = booksOnly
+      ? 'No books found. Try unchecking "Books only".'
+      : 'No results found.';
     return;
   }
 
-  statusEl.textContent = `${data.results.length} result${data.results.length !== 1 ? 's' : ''} found`;
+  statusEl.textContent = `${filtered.length} result${filtered.length !== 1 ? 's' : ''} found`;
 
-  for (const result of data.results) {
+  for (const result of filtered) {
     const card = renderCard(result);
-    if (card) resultsEl.appendChild(card);
+    if (card) {
+      resultsEl.appendChild(card);
+      // Lazy-load availability after card is in DOM
+      requestAnimationFrame(() => renderAvailability(card, result));
+    }
   }
 }
 
@@ -146,6 +188,7 @@ form.addEventListener('submit', async (e) => {
     const res = await fetch(`/api/search?${params}`);
     if (!res.ok) throw new Error(`Server error: ${res.status}`);
     const data = await res.json();
+    window._lastSearchData = data;
     showBanners(data.errors);
     renderResults(data);
   } catch (err) {
@@ -153,5 +196,15 @@ form.addEventListener('submit', async (e) => {
     console.error(err);
   } finally {
     setLoading(false);
+  }
+});
+
+// Re-filter in place when checkbox changes (without re-fetching)
+booksOnlyFilter.addEventListener('change', () => {
+  const cards = resultsEl.querySelectorAll('.result-card');
+  // If we have loaded results, trigger a fresh render from last data
+  // We track last data on the form submit handler
+  if (window._lastSearchData) {
+    renderResults(window._lastSearchData);
   }
 });

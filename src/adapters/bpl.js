@@ -33,6 +33,7 @@ function normalizeItem(item) {
   const author = item['dc:creator']?.__cdata ?? item['dc:creator'] ?? '';
   const link = item.link ?? '';
   const imageUrl = item.image_url ?? null;
+  const recordId = link ? link.split('/').pop().split('?')[0] : null;
 
   // category appears twice: first is format code, second is language
   const categories = [].concat(item.category ?? []);
@@ -52,6 +53,7 @@ function normalizeItem(item) {
     libraryPageUrl: link,
     hostingLibrary: 'BPL',
     format,
+    recordId,
   };
 }
 
@@ -76,4 +78,17 @@ async function search({ title, author }) {
   return items.map(normalizeItem);
 }
 
-module.exports = { search };
+async function getAvailability(recordId) {
+  // BiblioCommons V2 API: bibs?ids= returns entity map with availability
+  const url = `https://gateway.bibliocommons.com/v2/libraries/bpl/bibs?ids=${encodeURIComponent(recordId)}&locale=en-US`;
+  const res = await fetch(url, { headers: { 'User-Agent': 'meta-library-search/1.0' } });
+  if (!res.ok) return null;
+  const data = await res.json();
+  const bib = data?.entities?.bibs?.[recordId];
+  if (!bib) return null;
+  const status = bib?.availability?.status;
+  if (!status) return null;
+  return status === 'AVAILABLE' ? 'available' : 'unavailable';
+}
+
+module.exports = { search, getAvailability };

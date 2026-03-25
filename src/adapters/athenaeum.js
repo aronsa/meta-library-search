@@ -62,6 +62,7 @@ function parseResults(html) {
       libraryPageUrl,
       hostingLibrary: 'Athenaeum',
       format,
+      recordId: bibId || null,
     });
   });
 
@@ -108,10 +109,47 @@ async function search({ title, author }) {
       libraryPageUrl: bibId ? `${BASE_URL}/holdingsInfo?bibId=${bibId}` : res.url,
       hostingLibrary: 'Athenaeum',
       format: 'Book',
+      recordId: bibId || null,
     }];
   }
 
   return parseResults(html);
 }
 
-module.exports = { search };
+async function getAvailability(bibId) {
+  // Fetch the holdings info page and parse available/checked-out status
+  const url = `${BASE_URL}/holdingsInfo?bibId=${encodeURIComponent(bibId)}`;
+  const res = await fetch(url, { headers: { 'User-Agent': 'meta-library-search/1.0' } });
+  if (!res.ok) return null;
+  const html = await res.text();
+  const $ = cheerio.load(html);
+
+  let availableCount = 0;
+  let totalCount = 0;
+
+  // Horizon OPAC holds in table rows; last cell is typically the status
+  $('table tr').each((_, row) => {
+    const cells = $(row).find('td');
+    if (cells.length < 2) return;
+    // Check all cells for status text (last cell most likely)
+    const statusText = $(cells.last()).text().toLowerCase().trim();
+    if (!statusText) return;
+    if (statusText.includes('available') || statusText.includes('in library') || statusText.includes('on shelf')) {
+      availableCount++;
+      totalCount++;
+    } else if (
+      statusText.includes('checked') ||
+      statusText.includes('due') ||
+      statusText.includes('loan') ||
+      statusText.includes('transit') ||
+      statusText.includes('hold')
+    ) {
+      totalCount++;
+    }
+  });
+
+  if (totalCount === 0) return null;
+  return availableCount > 0 ? 'available' : 'unavailable';
+}
+
+module.exports = { search, getAvailability };
