@@ -294,19 +294,19 @@ main {
 
 /* Footer */
 footer {
-  background: var(--accent);
-  color: white;
+  background: #eee8d5;
+  color: var(--text-muted);
   text-align: center;
-  padding: 0.75rem 1rem;
-  font-size: 0.8rem;
-  opacity: 0.9;
+  padding: 0.4rem 1rem;
+  font-size: 0.75rem;
   font-family: system-ui, sans-serif;
+  border-top: 1px solid #ddd6c1;
 }
 
 footer a {
-  color: white;
+  color: var(--text-muted);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
-footer a:hover { opacity: 0.8; }
+footer a:hover { color: var(--text); }
