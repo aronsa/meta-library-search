@@ -60,9 +60,9 @@ app.get('/api/entity', async (req, res) => {
     } else if (library === 'athenaeum') {
       entity = await withTimeout(getAthenaeumEntity(id), 6000);
     }
-    return res.json(entity || { availability: null, coverImageUrl: null });
+    return res.json(entity || { availability: null, availableCopies: null, totalCopies: null, coverImageUrl: null });
   } catch (e) {
-    return res.json({ availability: null, coverImageUrl: null });
+    return res.json({ availability: null, availableCopies: null, totalCopies: null, coverImageUrl: null });
   }
 });
 

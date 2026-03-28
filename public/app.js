@@ -56,8 +56,13 @@ function enrichCard(card, result) {
         if (data.availability === null || data.availability === undefined) {
           availEl.remove();
         } else {
-          availEl.textContent = data.availability === 'available' ? 'Available' : 'Checked out';
-          availEl.className = `availability-badge ${data.availability === 'available' ? 'avail-yes' : 'avail-no'}`;
+          const isAvail = data.availability === 'available';
+          let label = isAvail ? 'Available' : 'Checked out';
+          if (data.totalCopies !== null && data.totalCopies !== undefined) {
+            label += ` · ${data.availableCopies} / ${data.totalCopies} cop${data.totalCopies === 1 ? 'y' : 'ies'}`;
+          }
+          availEl.textContent = label;
+          availEl.className = `availability-badge ${isAvail ? 'avail-yes' : 'avail-no'}`;
         }
       }
 

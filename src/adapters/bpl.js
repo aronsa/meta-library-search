@@ -79,15 +79,18 @@ async function search({ title, author }) {
 }
 
 async function getEntity(recordId) {
-  const url = `https://gateway.bibliocommons.com/v2/libraries/bpl/bibs?ids=${encodeURIComponent(recordId)}&locale=en-US`;
+  const url = `https://gateway.bibliocommons.com/v2/libraries/bpl/bibs?metadataIds=${encodeURIComponent(recordId)}&locale=en-US`;
   const res = await fetch(url, { headers: { 'User-Agent': 'meta-library-search/1.0' } });
   if (!res.ok) return null;
   const data = await res.json();
   const bib = data?.entities?.bibs?.[recordId];
   if (!bib) return null;
-  const rawStatus = bib?.availability?.status;
+  const avail = bib?.availability;
+  const rawStatus = avail?.status;
   const availability = rawStatus ? (rawStatus === 'AVAILABLE' ? 'available' : 'unavailable') : null;
-  return { availability, coverImageUrl: null };
+  const availableCopies = avail?.availableCopies ?? null;
+  const totalCopies = avail?.totalCopies ?? null;
+  return { availability, availableCopies, totalCopies, coverImageUrl: null };
 }
 
 module.exports = { search, getEntity };

@@ -151,7 +151,9 @@ async function getEntity(bibId) {
   });
 
   const availability = totalCount === 0 ? null : (availableCount > 0 ? 'available' : 'unavailable');
-  return { availability, coverImageUrl };
+  const availableCopies = totalCount > 0 ? availableCount : null;
+  const totalCopies = totalCount > 0 ? totalCount : null;
+  return { availability, availableCopies, totalCopies, coverImageUrl };
 }
 
 module.exports = { search, getEntity };
