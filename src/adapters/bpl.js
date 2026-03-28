@@ -78,17 +78,16 @@ async function search({ title, author }) {
   return items.map(normalizeItem);
 }
 
-async function getAvailability(recordId) {
-  // BiblioCommons V2 API: bibs?ids= returns entity map with availability
+async function getEntity(recordId) {
   const url = `https://gateway.bibliocommons.com/v2/libraries/bpl/bibs?ids=${encodeURIComponent(recordId)}&locale=en-US`;
   const res = await fetch(url, { headers: { 'User-Agent': 'meta-library-search/1.0' } });
   if (!res.ok) return null;
   const data = await res.json();
   const bib = data?.entities?.bibs?.[recordId];
   if (!bib) return null;
-  const status = bib?.availability?.status;
-  if (!status) return null;
-  return status === 'AVAILABLE' ? 'available' : 'unavailable';
+  const rawStatus = bib?.availability?.status;
+  const availability = rawStatus ? (rawStatus === 'AVAILABLE' ? 'available' : 'unavailable') : null;
+  return { availability, coverImageUrl: null };
 }
 
-module.exports = { search, getAvailability };
+module.exports = { search, getEntity };

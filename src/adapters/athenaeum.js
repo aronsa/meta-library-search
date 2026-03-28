@@ -116,22 +116,24 @@ async function search({ title, author }) {
   return parseResults(html);
 }
 
-async function getAvailability(bibId) {
-  // Fetch the holdings info page and parse available/checked-out status
+async function getEntity(bibId) {
   const url = `${BASE_URL}/holdingsInfo?bibId=${encodeURIComponent(bibId)}`;
   const res = await fetch(url, { headers: { 'User-Agent': 'meta-library-search/1.0' } });
   if (!res.ok) return null;
   const html = await res.text();
   const $ = cheerio.load(html);
 
+  // Extract ISBN from the holdings page and build an Open Library cover URL
+  const isbnMatch = html.match(/ISBN[:\s]*([\d-]{10,17})/i);
+  const isbn = isbnMatch ? isbnMatch[1].replace(/-/g, '') : null;
+  const coverImageUrl = isbn ? `https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg` : null;
+
   let availableCount = 0;
   let totalCount = 0;
 
-  // Horizon OPAC holds in table rows; last cell is typically the status
   $('table tr').each((_, row) => {
     const cells = $(row).find('td');
     if (cells.length < 2) return;
-    // Check all cells for status text (last cell most likely)
     const statusText = $(cells.last()).text().toLowerCase().trim();
     if (!statusText) return;
     if (statusText.includes('available') || statusText.includes('in library') || statusText.includes('on shelf')) {
@@ -148,8 +150,8 @@ async function getAvailability(bibId) {
     }
   });
 
-  if (totalCount === 0) return null;
-  return availableCount > 0 ? 'available' : 'unavailable';
+  const availability = totalCount === 0 ? null : (availableCount > 0 ? 'available' : 'unavailable');
+  return { availability, coverImageUrl };
 }
 
-module.exports = { search, getAvailability };
+module.exports = { search, getEntity };

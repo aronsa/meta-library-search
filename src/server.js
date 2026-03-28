@@ -1,7 +1,7 @@
 const express = require('express');
 const path = require('path');
-const { search: searchBPL, getAvailability: getBPLAvailability } = require('./adapters/bpl');
-const { search: searchAthenaeum, getAvailability: getAthenaeumAvailability } = require('./adapters/athenaeum');
+const { search: searchBPL, getEntity: getBPLEntity } = require('./adapters/bpl');
+const { search: searchAthenaeum, getEntity: getAthenaeumEntity } = require('./adapters/athenaeum');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -47,22 +47,22 @@ app.get('/api/search', async (req, res) => {
   });
 });
 
-app.get('/api/availability', async (req, res) => {
+app.get('/api/entity', async (req, res) => {
   const { library, id } = req.query;
   if (!library || !id) {
     return res.status(400).json({ error: 'Requires library and id' });
   }
 
   try {
-    let status = null;
+    let entity = null;
     if (library === 'bpl') {
-      status = await withTimeout(getBPLAvailability(id), 6000);
+      entity = await withTimeout(getBPLEntity(id), 6000);
     } else if (library === 'athenaeum') {
-      status = await withTimeout(getAthenaeumAvailability(id), 6000);
+      entity = await withTimeout(getAthenaeumEntity(id), 6000);
     }
-    return res.json({ status });
+    return res.json(entity || { availability: null, coverImageUrl: null });
   } catch (e) {
-    return res.json({ status: null });
+    return res.json({ availability: null, coverImageUrl: null });
   }
 });
 

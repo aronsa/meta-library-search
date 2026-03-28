@@ -40,24 +40,44 @@ function isBook(result) {
   return result.format.toLowerCase() === 'book';
 }
 
-function renderAvailability(card, result) {
+function enrichCard(card, result) {
   if (!result.recordId) return;
 
   const library = result.hostingLibrary === 'BPL' ? 'bpl' : 'athenaeum';
-  const availEl = card.querySelector('.result-availability');
-  if (!availEl) return;
 
-  fetch(`/api/availability?library=${library}&id=${encodeURIComponent(result.recordId)}`)
+  fetch(`/api/entity?library=${library}&id=${encodeURIComponent(result.recordId)}`)
     .then(r => r.ok ? r.json() : null)
     .then(data => {
-      if (!data || data.status === null || data.status === undefined) {
-        availEl.remove();
-        return;
+      if (!data) return;
+
+      // Update availability badge
+      const availEl = card.querySelector('.availability-badge');
+      if (availEl) {
+        if (data.availability === null || data.availability === undefined) {
+          availEl.remove();
+        } else {
+          availEl.textContent = data.availability === 'available' ? 'Available' : 'Checked out';
+          availEl.className = `availability-badge ${data.availability === 'available' ? 'avail-yes' : 'avail-no'}`;
+        }
       }
-      availEl.textContent = data.status === 'available' ? 'Available' : 'Checked out';
-      availEl.className = `availability-badge ${data.status === 'available' ? 'avail-yes' : 'avail-no'}`;
+
+      // Update cover image if we didn't already have one
+      if (data.coverImageUrl && !result.coverImageUrl) {
+        const coverEl = card.querySelector('.result-cover');
+        const noCoverEl = coverEl?.querySelector('.no-cover');
+        if (noCoverEl) {
+          const img = document.createElement('img');
+          img.src = data.coverImageUrl;
+          img.alt = result.title;
+          img.onerror = () => img.replaceWith(noCover());
+          noCoverEl.replaceWith(img);
+        }
+      }
     })
-    .catch(() => availEl.remove());
+    .catch(() => {
+      const availEl = card.querySelector('.availability-badge');
+      if (availEl) availEl.remove();
+    });
 }
 
 function renderCard(result) {
@@ -168,7 +188,7 @@ function renderResults(data) {
     if (card) {
       resultsEl.appendChild(card);
       // Lazy-load availability after card is in DOM
-      requestAnimationFrame(() => renderAvailability(card, result));
+      requestAnimationFrame(() => enrichCard(card, result));
     }
   }
 }
