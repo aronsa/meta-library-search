@@ -1,6 +1,6 @@
 const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
-const { search } = require('./bpl');
+const { search, getAvailability } = require('./bpl');
 
 // Helper: assert every result has the full normalized shape
 function assertShape(results, label) {
@@ -98,5 +98,20 @@ describe('BPL author-only searches', () => {
     const results = await search({ title: '', author: 'Hemingway' });
     assertShape(results, 'author: Hemingway');
     assert.ok(results.some(r => r.authors.some(a => a.toLowerCase().includes('hemingway'))));
+  });
+});
+
+// --- availability ---
+
+describe('BPL getAvailability', () => {
+  test('returns a valid status for a known record', async () => {
+    const results = await search({ title: 'Moby Dick', author: 'Melville' });
+    const withId = results.find(r => r.recordId);
+    assert.ok(withId, 'Expected at least one result with a recordId');
+    const status = await getAvailability(withId.recordId);
+    assert.ok(
+      status === 'available' || status === 'unavailable' || status === null,
+      `Expected valid status, got: ${status}`
+    );
   });
 });

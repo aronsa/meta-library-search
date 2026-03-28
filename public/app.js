@@ -44,7 +44,7 @@ function renderAvailability(card, result) {
   if (!result.recordId) return;
 
   const library = result.hostingLibrary === 'BPL' ? 'bpl' : 'athenaeum';
-  const availEl = card.querySelector('.result-availability');
+  const availEl = card.querySelector('.avail-loading');
   if (!availEl) return;
 
   fetch(`/api/availability?library=${library}&id=${encodeURIComponent(result.recordId)}`)
