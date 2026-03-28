@@ -1,0 +1,15 @@
+# Place this file at .github/workflows/deploy.yml in meta-library-search
+
+name: Deploy to production
+
+on:
+  push:
+    branches:
+      - normie-impl
+
+jobs:
+  deploy:
+    uses: aronsa/deployer/.github/workflows/deploy-reusable.yml@main
+    with:
+      app: metalib
+    secrets: inherit
