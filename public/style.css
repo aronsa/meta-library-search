@@ -167,6 +167,13 @@ main {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 1rem;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.result-card:hover {
+  border-color: var(--accent);
 }
 
 .result-cover {
@@ -206,12 +213,6 @@ main {
   margin-bottom: 0.2rem;
 }
 
-.result-title a {
-  color: var(--text);
-  text-decoration: none;
-}
-
-.result-title a:hover { text-decoration: underline; }
 
 .result-author {
   font-size: 0.875rem;

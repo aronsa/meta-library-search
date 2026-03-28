@@ -81,8 +81,11 @@ function enrichCard(card, result) {
 }
 
 function renderCard(result) {
-  const card = document.createElement('div');
+  const card = document.createElement('a');
   card.className = 'result-card';
+  card.href = result.libraryPageUrl;
+  card.target = '_blank';
+  card.rel = 'noopener noreferrer';
 
   // Cover
   const coverEl = document.createElement('div');
@@ -105,12 +108,7 @@ function renderCard(result) {
 
   const titleEl = document.createElement('div');
   titleEl.className = 'result-title';
-  const link = document.createElement('a');
-  link.href = result.libraryPageUrl;
-  link.target = '_blank';
-  link.rel = 'noopener noreferrer';
-  link.textContent = result.title;
-  titleEl.appendChild(link);
+  titleEl.textContent = result.title;
 
   const authorEl = document.createElement('div');
   authorEl.className = 'result-author';
