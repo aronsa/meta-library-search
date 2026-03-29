@@ -1,3 +1,4 @@
+const homeBtn = document.getElementById('home-btn');
 const form = document.getElementById('search-form');
 const titleInput = document.getElementById('title-input');
 const authorInput = document.getElementById('author-input');
@@ -220,6 +221,16 @@ form.addEventListener('submit', async (e) => {
   } finally {
     setLoading(false);
   }
+});
+
+homeBtn.addEventListener('click', () => {
+  titleInput.value = '';
+  authorInput.value = '';
+  statusEl.textContent = '';
+  bannersEl.innerHTML = '';
+  resultsEl.innerHTML = '';
+  window._lastSearchData = null;
+  titleInput.focus();
 });
 
 // Re-filter in place when checkbox changes (without re-fetching)
