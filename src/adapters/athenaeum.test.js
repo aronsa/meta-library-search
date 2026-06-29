@@ -32,12 +32,13 @@ describe('Athenaeum title + author searches', () => {
     assert.ok(results.some(r => r.title.toLowerCase().includes('beloved')));
   });
 
-  test('Courage to Act — Bernanke (single-result redirect case)', async () => {
-    // This query returns exactly 1 result, triggering the inline holdings page
+  test('Courage to Act — Bernanke (single result)', async () => {
+    // This query returns exactly 1 result; VuFind still renders a normal feed.
     const results = await search({ title: 'Courage to Act', author: 'Bernanke' });
     assertShape(results, 'Courage to Act / Bernanke');
     assert.ok(results[0].title.toLowerCase().includes('courage'));
-    assert.ok(results[0].libraryPageUrl.includes('bibId='));
+    // VuFind record links look like .../Record/ba518028
+    assert.ok(results[0].libraryPageUrl.includes('/Record/'));
   });
 
   test('Middlemarch — Eliot', async () => {

@@ -16,7 +16,7 @@ npm test          # run integration tests (hits live library APIs)
 - **Backend**: Express server (`src/server.js`) exposes `GET /api/search?title=...&author=...`
 - **Adapters**: Each library has an adapter in `src/adapters/` that normalizes results to a common schema
   - `bpl.js` — queries BiblioCommons RSS feed, parses XML
-  - `athenaeum.js` — web scraper using Cheerio; requires session cookie seeding; handles single-result redirect edge case
+  - `athenaeum.js` — queries the VuFind catalog's RSS search view (`/Search/Results?view=rss`), parses XML. The catalog migrated from the legacy VWebV OPAC to VuFind; the HTML UI, cover proxy and JSON REST API are gated behind a bot-challenge / API permissions, so the RSS feed is the available integration surface. No per-record availability or cover enrichment is possible, so `getEntity` returns an empty shape.
 - **Frontend**: Vanilla JS/HTML/CSS in `public/`
 
 ## Result Schema
