@@ -8,10 +8,6 @@ const { XMLParser } = require('fast-xml-parser');
 const BASE_URL = 'https://catalog.bostonathenaeum.org';
 const SEARCH_URL = `${BASE_URL}/Search/Results`;
 
-const USER_AGENT =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
-  '(KHTML, like Gecko) Chrome/124.0 Safari/537.36';
-
 const parser = new XMLParser({
   ignoreAttributes: false,
   isArray: (name) => name === 'item',
@@ -92,7 +88,7 @@ async function search({ title, author }) {
 
   const res = await fetch(url, {
     headers: {
-      'User-Agent': USER_AGENT,
+      'User-Agent': 'meta-library-search/1.0',
       'Accept': 'application/rss+xml, application/xml, text/xml',
     },
   });
