@@ -1,159 +1,148 @@
-const cheerio = require('cheerio');
+const { XMLParser } = require('fast-xml-parser');
 
-const BASE_URL = 'https://catalog.bostonathenaeum.org/vwebv';
-const SEED_URL = `${BASE_URL}/search`;
+// The Athenaeum catalog ("Athena") migrated from the old VWebV OPAC to VuFind.
+// VuFind sits behind an AWS WAF that issues a JavaScript "challenge" to every
+// HTML/AJAX request, which a server-side client cannot solve. The one endpoint
+// the WAF leaves open is the RSS view of a search result set
+// (`/Search/Results?...&view=rss`), so the adapter drives search through that
+// machine-readable feed instead of scraping HTML.
+const BASE_URL = 'https://catalog.bostonathenaeum.org';
 
-async function seedSession() {
-  const res = await fetch(SEED_URL, {
-    headers: { 'User-Agent': 'meta-library-search/1.0' },
-  });
-  const cookie = res.headers.get('set-cookie');
-  if (!cookie) throw new Error('Athenaeum: no session cookie received');
-  // Extract just the JSESSIONID=value portion
-  return cookie.split(';')[0];
-}
+const parser = new XMLParser({
+  ignoreAttributes: false,
+  attributeNamePrefix: '@_',
+  isArray: (name) => name === 'item',
+});
 
+// Build a VuFind search-results RSS URL.
+// - title + author  -> advanced search (two AND-joined field groups)
+// - title only      -> simple Title search
+// - author only     -> simple Author search
 function buildSearchUrl({ title, author }) {
-  const params = new URLSearchParams({
-    searchArg1: title,
-    argType1: 'phrase',
-    searchCode1: 'TKEY',
-    combine2: 'and',
-    searchArg2: author,
-    argType2: 'phrase',
-    searchCode2: 'NKEY',
-    combine3: 'and',
-    searchArg3: '',
-    argType3: 'any',
-    searchCode3: 'GKEY',
-    recCount: '50',
-    searchType: '2',
-    'page.search.search.button': 'Search',
-  });
-  return `${SEED_URL}?${params}`;
+  const params = new URLSearchParams();
+
+  if (title && author) {
+    params.append('join', 'AND');
+    params.append('lookfor0[]', title);
+    params.append('type0[]', 'Title');
+    params.append('lookfor0[]', author);
+    params.append('type0[]', 'Author');
+  } else if (title) {
+    params.append('lookfor', title);
+    params.append('type', 'Title');
+  } else {
+    params.append('lookfor', author);
+    params.append('type', 'Author');
+  }
+
+  // The RSS view defaults to `sort=last_indexed desc`; force relevance so the
+  // most pertinent records surface first.
+  params.append('sort', 'relevance');
+  params.append('limit', '50');
+  params.append('view', 'rss');
+
+  return `${BASE_URL}/Search/Results?${params}`;
 }
 
-function parseResults(html) {
-  const $ = cheerio.load(html);
-  const results = [];
+// VuFind authors arrive as "Surname, First, 1900-1980." — trim a trailing period.
+function cleanAuthor(value) {
+  return String(value ?? '').replace(/\.\s*$/, '').trim();
+}
 
-  $('#resultList > div.oddRow, #resultList > div.evenRow').each((_, el) => {
-    const titleEl = $(el).find('.line1Link a');
-    const title = titleEl.text().trim();
-    if (!title) return;
+function recordIdFromLink(link) {
+  const match = String(link ?? '').match(/\/Record\/([^/?#]+)/);
+  return match ? match[1] : null;
+}
 
-    const relativeHref = titleEl.attr('href') ?? '';
-    const bibIdMatch = relativeHref.match(/bibId=(\d+)/);
-    const bibId = bibIdMatch?.[1];
-    const libraryPageUrl = bibId
-      ? `${BASE_URL}/holdingsInfo?bibId=${bibId}`
-      : `${BASE_URL}/${relativeHref}`;
+function normalizeItem(item) {
+  const title = String(item.title ?? '').trim();
+  const link = item.link ?? '';
+  const author = cleanAuthor(item['dc:creator'] ?? item.author ?? '');
+  const pubDate = item['dc:date'] ? String(item['dc:date']).trim() : null;
+  const format = String(item['dc:format'] ?? '').trim() || 'Book';
 
-    const author = $(el).find('.line2Link').text().replace(/\u00a0/g, '').trim();
-    const pubDate = $(el).find('.line3Link').text().replace(/\u00a0/g, '').trim();
-    const format = $(el).find('.resultListIcon img').attr('title') ?? 'Book';
-
-    results.push({
-      title,
-      authors: author ? [author] : [],
-      description: '',
-      publishDate: pubDate || null,
-      coverImageUrl: null,
-      libraryPageUrl,
-      hostingLibrary: 'Athenaeum',
-      format,
-      recordId: bibId || null,
-    });
-  });
-
-  return results;
+  return {
+    title,
+    authors: author ? [author] : [],
+    description: '',
+    publishDate: pubDate,
+    coverImageUrl: null,
+    libraryPageUrl: link || BASE_URL,
+    hostingLibrary: 'Athenaeum',
+    format,
+    recordId: recordIdFromLink(link),
+  };
 }
 
 async function search({ title, author }) {
-  const cookie = await seedSession();
-  const searchUrl = buildSearchUrl({ title, author });
+  const url = buildSearchUrl({ title, author });
 
-  const res = await fetch(searchUrl, {
+  const res = await fetch(url, {
     headers: {
-      'Cookie': cookie,
       'User-Agent': 'meta-library-search/1.0',
+      'Accept': 'application/rss+xml, application/xml, text/xml',
     },
   });
 
   if (!res.ok) throw new Error(`Athenaeum returned HTTP ${res.status}`);
 
-  const html = await res.text();
+  const xml = await res.text();
 
-  // Single-result: OPAC renders holdings page inline (URL stays at /search)
-  // Detect by presence of the holdings page marker in the body onLoad attribute
-  if (html.includes("setFocus('page.holdingsInfo')")) {
-    const $ = cheerio.load(html);
-    const bibIdMatch = html.match(/bibId=(\d+)/);
-    const bibId = bibIdMatch?.[1];
-    const title = $('.bibTitle p').first().text().replace(/\s*\/\s*$/, '').trim();
-    const authorsRaw = [];
-    $('.fieldLabelSpan').each((_, el) => {
-      const label = $(el).text().trim();
-      if (label === 'Main Author:' || label === 'Author:') {
-        const val = $(el).siblings('.subfieldData').text().trim()
-          .replace(/,?\s*author\.?$/, '').trim();
-        if (val) authorsRaw.push(val);
-      }
-    });
-    return [{
-      title: title || 'Unknown title',
-      authors: authorsRaw,
-      description: '',
-      publishDate: null,
-      coverImageUrl: null,
-      libraryPageUrl: bibId ? `${BASE_URL}/holdingsInfo?bibId=${bibId}` : res.url,
-      hostingLibrary: 'Athenaeum',
-      format: 'Book',
-      recordId: bibId || null,
-    }];
+  // If the WAF ever starts challenging the RSS view too, we get an HTML
+  // challenge page instead of a feed — surface that as a clear failure.
+  if (res.headers.get('x-amzn-waf-action') || !xml.includes('<rss')) {
+    throw new Error('Athenaeum: blocked by catalog WAF challenge');
   }
 
-  return parseResults(html);
+  const parsed = parser.parse(xml);
+  const items = parsed?.rss?.channel?.item ?? [];
+
+  return items
+    .map(normalizeItem)
+    .filter((r) => r.title.length > 0);
 }
 
-async function getEntity(bibId) {
-  const url = `${BASE_URL}/holdingsInfo?bibId=${encodeURIComponent(bibId)}`;
+// Per-record availability and cover data live on the VuFind record/AJAX
+// endpoints, all of which sit behind the WAF challenge and are therefore
+// unreachable from a server-side client. We still attempt the record page so
+// the enrichment works automatically if the catalog is ever opened up, but we
+// detect the challenge and fail soft (the UI simply omits the availability
+// badge and cover when this returns null).
+async function getEntity(recordId) {
+  const url = `${BASE_URL}/Record/${encodeURIComponent(recordId)}`;
   const res = await fetch(url, { headers: { 'User-Agent': 'meta-library-search/1.0' } });
-  if (!res.ok) return null;
+  if (!res.ok || res.headers.get('x-amzn-waf-action')) return null;
+
   const html = await res.text();
+  if (html.includes('awsWafCookieDomainList') || !html.includes('</html>')) return null;
+
+  const cheerio = require('cheerio');
   const $ = cheerio.load(html);
 
-  // Extract ISBN from the holdings page and build an Open Library cover URL
-  const isbnMatch = html.match(/ISBN[:\s]*([\d-]{10,17})/i);
-  const isbn = isbnMatch ? isbnMatch[1].replace(/-/g, '') : null;
+  const isbnMatch = html.match(/\b(97[89][\d-]{10,16}|\d{9}[\dXx])\b/);
+  const isbn = isbnMatch ? isbnMatch[0].replace(/-/g, '') : null;
   const coverImageUrl = isbn ? `https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg` : null;
 
   let availableCount = 0;
   let totalCount = 0;
-
   $('table tr').each((_, row) => {
-    const cells = $(row).find('td');
-    if (cells.length < 2) return;
-    const statusText = $(cells.last()).text().toLowerCase().trim();
+    const statusText = $(row).find('td').last().text().toLowerCase().trim();
     if (!statusText) return;
-    if (statusText.includes('available') || statusText.includes('in library') || statusText.includes('on shelf')) {
+    if (statusText.includes('available') || statusText.includes('on shelf') || statusText.includes('in library')) {
       availableCount++;
       totalCount++;
-    } else if (
-      statusText.includes('checked') ||
-      statusText.includes('due') ||
-      statusText.includes('loan') ||
-      statusText.includes('transit') ||
-      statusText.includes('hold')
-    ) {
+    } else if (/checked|due|loan|transit|hold/.test(statusText)) {
       totalCount++;
     }
   });
 
   const availability = totalCount === 0 ? null : (availableCount > 0 ? 'available' : 'unavailable');
-  const availableCopies = totalCount > 0 ? availableCount : null;
-  const totalCopies = totalCount > 0 ? totalCount : null;
-  return { availability, availableCopies, totalCopies, coverImageUrl };
+  return {
+    availability,
+    availableCopies: totalCount > 0 ? availableCount : null,
+    totalCopies: totalCount > 0 ? totalCount : null,
+    coverImageUrl,
+  };
 }
 
 module.exports = { search, getEntity };
