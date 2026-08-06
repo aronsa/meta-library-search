@@ -56,7 +56,13 @@ function normalizeItem(item) {
     .map((c) => c.toString().trim())
     .filter(Boolean);
 
-  const format = (item['dc:format'] ?? '').toString().trim() || 'Book';
+  // dc:format can repeat: a leading genre/content-type facet (e.g. "Manuscript",
+  // "Conference Proceeding") followed by the actual physical-format facet we
+  // want (e.g. "Book", "Map"). fast-xml-parser only returns an array when the
+  // tag repeats, so normalize to an array first and take the last entry —
+  // naively `.toString()`-ing a repeated tag would join it into "Manuscript,Book".
+  const rawFormats = [].concat(item['dc:format'] ?? []);
+  const format = (rawFormats[rawFormats.length - 1] ?? '').toString().trim() || 'Book';
 
   const rawDate = item['dc:date'];
   const publishDate =

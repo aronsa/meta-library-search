@@ -80,6 +80,16 @@ describe('Athenaeum title-only searches', () => {
     assertShape(results, 'Annihilation title-only');
     assert.ok(results.length > 0);
   });
+
+  test('G. Washington, a figure upon the stage (repeated dc:format tag)', async () => {
+    // This record's <dc:format> tag appears twice in the RSS feed
+    // (Government Document, then Book) — fast-xml-parser returns that as an
+    // array instead of a string, which naive string coercion turns into
+    // "Government Document,Book". Assert we pick the physical-format value.
+    const results = await search({ title: 'figure upon the stage', author: '' });
+    assertShape(results, 'figure upon the stage');
+    assert.equal(results[0].format, 'Book');
+  });
 });
 
 // --- author only ---
