@@ -32,12 +32,13 @@ describe('Athenaeum title + author searches', () => {
     assert.ok(results.some(r => r.title.toLowerCase().includes('beloved')));
   });
 
-  test('Courage to Act — Bernanke (single-result redirect case)', async () => {
-    // This query returns exactly 1 result, triggering the inline holdings page
+  test('Courage to Act — Bernanke (single result)', async () => {
+    // This query returns exactly 1 result; VuFind still renders a normal feed.
     const results = await search({ title: 'Courage to Act', author: 'Bernanke' });
     assertShape(results, 'Courage to Act / Bernanke');
     assert.ok(results[0].title.toLowerCase().includes('courage'));
-    assert.ok(results[0].libraryPageUrl.includes('bibId='));
+    // VuFind record links look like .../Record/ba518028
+    assert.ok(results[0].libraryPageUrl.includes('/Record/'));
   });
 
   test('Middlemarch — Eliot', async () => {
@@ -78,6 +79,16 @@ describe('Athenaeum title-only searches', () => {
     const results = await search({ title: 'Annihilation', author: '' });
     assertShape(results, 'Annihilation title-only');
     assert.ok(results.length > 0);
+  });
+
+  test('G. Washington, a figure upon the stage (repeated dc:format tag)', async () => {
+    // This record's <dc:format> tag appears twice in the RSS feed
+    // (Government Document, then Book) — fast-xml-parser returns that as an
+    // array instead of a string, which naive string coercion turns into
+    // "Government Document,Book". Assert we pick the physical-format value.
+    const results = await search({ title: 'figure upon the stage', author: '' });
+    assertShape(results, 'figure upon the stage');
+    assert.equal(results[0].format, 'Book');
   });
 });
 
