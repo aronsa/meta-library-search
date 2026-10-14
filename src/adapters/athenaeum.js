@@ -2,9 +2,10 @@ const { XMLParser } = require('fast-xml-parser');
 
 // The Athenaeum migrated its catalog from the legacy VWebV OPAC to VuFind.
 // VuFind exposes search results as an RSS feed (`view=rss`), which — unlike the
-// HTML UI and the JSON REST API — is reachable without solving the catalog's
-// bot-challenge or holding a privileged API permission. We query that feed and
+// JSON REST API — needs no privileged API permission. We query that feed and
 // normalize it to the shared result schema, mirroring the BPL RSS adapter.
+// Since October 2026 the whole catalog, feed included, is behind AWS WAF, so
+// automated requests get a captcha/block page; see the check in search().
 const BASE_URL = 'https://catalog.bostonathenaeum.org';
 const SEARCH_URL = `${BASE_URL}/Search/Results`;
 
@@ -16,17 +17,18 @@ const parser = new XMLParser({
 // Map a (title, author) pair onto VuFind search parameters. With a single field
 // VuFind uses the simple `lookfor`/`type` form; with both it uses the grouped
 // advanced syntax (lookfor0[]/type0[]/bool0[]) so the terms are ANDed together.
-function buildSearchUrl({ title, author }) {
+// With `rss: false` it returns the human-facing results page instead of the feed.
+function buildSearchUrl({ title, author }, { rss = true } = {}) {
   const fields = [];
   if (title) fields.push(['Title', title]);
   if (author) fields.push(['Author', author]);
 
   const params = new URLSearchParams({
-    view: 'rss',
     sort: 'relevance',
     limit: '20',
     lng: 'en',
   });
+  if (rss) params.set('view', 'rss');
 
   if (fields.length === 1) {
     params.set('lookfor', fields[0][1]);
@@ -99,6 +101,11 @@ async function search({ title, author }) {
     },
   });
 
+  // The catalog sits behind AWS WAF, which answers automated clients with a
+  // captcha/block page instead of the feed. Only a human in a browser can pass it.
+  if (res.headers.get('x-amzn-waf-action')) {
+    throw new Error('catalog is blocking automated searches');
+  }
   if (!res.ok) throw new Error(`Athenaeum returned HTTP ${res.status}`);
 
   const xml = await res.text();
@@ -119,4 +126,10 @@ async function getEntity(_recordId) {
   };
 }
 
-module.exports = { search, getEntity };
+// The same search on the catalog's own site, for users to open in their browser
+// when our server-side search is unavailable.
+function catalogSearchUrl(query) {
+  return buildSearchUrl(query, { rss: false });
+}
+
+module.exports = { search, getEntity, catalogSearchUrl };

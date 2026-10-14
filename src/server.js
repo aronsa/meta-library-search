@@ -1,7 +1,7 @@
 const express = require('express');
 const path = require('path');
 const { search: searchBPL, getEntity: getBPLEntity } = require('./adapters/bpl');
-const { search: searchAthenaeum, getEntity: getAthenaeumEntity } = require('./adapters/athenaeum');
+const { search: searchAthenaeum, getEntity: getAthenaeumEntity, catalogSearchUrl: athenaeumCatalogUrl } = require('./adapters/athenaeum');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -43,6 +43,10 @@ app.get('/api/search', async (req, res) => {
     errors: {
       athenaeum: athResult.status === 'rejected' ? athResult.reason.message : null,
       bpl: bplResult.status === 'rejected' ? bplResult.reason.message : null,
+    },
+    // Links to run the same search on a library's own site when ours failed.
+    fallbackUrls: {
+      athenaeum: athResult.status === 'rejected' ? athenaeumCatalogUrl(query) : null,
     },
   });
 });

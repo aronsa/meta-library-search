@@ -12,7 +12,7 @@ function setLoading(loading) {
   statusEl.textContent = loading ? 'Searching BPL and the Athenaeum…' : '';
 }
 
-function showBanners(errors) {
+function showBanners(errors, fallbackUrls = {}) {
   bannersEl.innerHTML = '';
   const labels = { bpl: 'Boston Public Library', athenaeum: 'Boston Athenaeum' };
   for (const [key, msg] of Object.entries(errors)) {
@@ -20,6 +20,14 @@ function showBanners(errors) {
     const div = document.createElement('div');
     div.className = 'error-banner';
     div.textContent = `${labels[key]} results unavailable (${msg})`;
+    if (fallbackUrls[key]) {
+      const link = document.createElement('a');
+      link.href = fallbackUrls[key];
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.textContent = `Search the ${labels[key]} catalog in a new tab ↗`;
+      div.append(' — ', link);
+    }
     bannersEl.appendChild(div);
   }
 }
@@ -212,7 +220,7 @@ form.addEventListener('submit', async (e) => {
     if (!res.ok) throw new Error(`Server error: ${res.status}`);
     const data = await res.json();
     window._lastSearchData = data;
-    showBanners(data.errors);
+    showBanners(data.errors, data.fallbackUrls);
     renderResults(data);
   } catch (err) {
     statusEl.textContent = 'Search failed — please try again.';

@@ -16,7 +16,7 @@ npm test          # run integration tests (hits live library APIs)
 - **Backend**: Express server (`src/server.js`) exposes `GET /api/search?title=...&author=...`
 - **Adapters**: Each library has an adapter in `src/adapters/` that normalizes results to a common schema
   - `bpl.js` — queries BiblioCommons RSS feed, parses XML
-  - `athenaeum.js` — queries the VuFind catalog's RSS search view (`/Search/Results?view=rss`), parses XML. The catalog migrated from the legacy VWebV OPAC to VuFind; the HTML UI, cover proxy and JSON REST API are gated behind a bot-challenge / API permissions, so the RSS feed is the available integration surface. No per-record availability or cover enrichment is possible, so `getEntity` returns an empty shape.
+  - `athenaeum.js` — queries the VuFind catalog's RSS search view (`/Search/Results?view=rss`), parses XML. The catalog migrated from the legacy VWebV OPAC to VuFind; the HTML UI, cover proxy and JSON REST API are gated behind a bot-challenge / API permissions, so the RSS feed is the only integration surface. As of October 2026 the whole catalog, RSS feed included, sits behind AWS WAF, which answers automated requests with a captcha/block page (detected via the `x-amzn-waf-action` header). Athenaeum searches therefore fail until the Athenaeum allowlists this app; don't work around the challenge (e.g. by stripping or spoofing the User-Agent). No per-record availability or cover enrichment is possible, so `getEntity` returns an empty shape.
 - **Frontend**: Vanilla JS/HTML/CSS in `public/`
 
 ## Result Schema
@@ -35,5 +35,6 @@ All adapters normalize to:
 
 - Searches run in parallel with `Promise.allSettled()` and an 8-second timeout per library
 - One library failing does not block results from the other
+- When the Athenaeum search fails, `/api/search` returns `fallbackUrls.athenaeum` (the same search on the catalog's own site) and the error banner links to it in a new tab
 - Tests are integration tests that hit live endpoints — no mocking
 - Node.js v24 (see `.nvmrc`)

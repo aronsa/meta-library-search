@@ -151,6 +151,11 @@ main {
   color: #7a5800;
 }
 
+.error-banner a {
+  color: inherit;
+  font-weight: 600;
+}
+
 /* Results */
 #results {
   margin-top: 1.5rem;
